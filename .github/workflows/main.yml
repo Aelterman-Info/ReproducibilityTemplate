@@ -42,4 +42,5 @@ jobs:
             azure-file-volume-share-name: 'study-repro'
             #command-line: 'cp /mnt/y/aearep-2656/lots-of-research-data.txt /code/results/processed-data.txt'
             command-line: 'touch /mnt/y/aearep-2656/lots-of-research-data-2.txt'
+            restart-policy: 'Never'
             
