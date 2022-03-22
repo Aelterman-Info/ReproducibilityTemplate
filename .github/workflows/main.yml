@@ -25,7 +25,7 @@ jobs:
             docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.sha }}
 
         - name: 'Deploy to Azure Container Instances'
-          uses: 'SvenAelterman/aci-deploy@v1v.2.0-beta.2'
+          uses: 'SvenAelterman/aci-deploy@v1.2.0-beta.2'
           with:
             resource-group: ${{ secrets.RESOURCE_GROUP }}
             dns-name-label: ${{ secrets.RESOURCE_GROUP }}${{ github.run_number }}
