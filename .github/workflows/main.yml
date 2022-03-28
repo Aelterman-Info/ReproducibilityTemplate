@@ -23,26 +23,10 @@ jobs:
         - run: |
             docker build . -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.sha }}
             docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.sha }}
-
-        - name: 'Deploy to Azure Container Instances'
-          uses: 'SvenAelterman/aci-deploy@v1.2.0-beta.5'
-          with:
-            resource-group: ${{ secrets.RESOURCE_GROUP }}
-            #dns-name-label: ${{ secrets.RESOURCE_GROUP }}${{ github.run_number }}
-            image: ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.sha }}
-            registry-login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
-            registry-username: ${{ secrets.REGISTRY_USERNAME }}
-            registry-password: ${{ secrets.REGISTRY_PASSWORD }}
-            name: aci-aearep-2656
-            location: 'east us'
-            # Mods
-            ip-address: 'Private'
-            azure-file-volume-account-key: ${{ secrets.ST_ACCOUNT_KEY }}
-            azure-file-volume-account-name: streprodemoeastus01
-            azure-file-volume-mount-path: '/mnt/y'
-            azure-file-volume-share-name: 'study-repro'
-            #command-line: 'cp /mnt/y/aearep-2656/lots-of-research-data.txt /code/results/processed-data.txt'
-            command-line: 'touch /mnt/y/aearep-2656/lots-of-research-data-2.txt'
-            restart-policy: 'Never'
-            subnet-id: '/subscriptions/e781198c-6f6d-4994-b688-6e8e34c63c79/resourceGroups/rg-reproducibility-demo-eastus-01/providers/Microsoft.Network/virtualNetworks/vnet-reproducibility-demo-eastus-01/subnets/aci'
             
+        - name: Azure CLI Action
+          uses: Azure/cli@v1
+          with:
+            inlineScript: |
+                az container create -g ${{ secrets.RESOURCE_GROUP }} -n aci-repo1 --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.sha }} --cpu 1 --memory 1.5 --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} --registry-username ${{ secrets.REGISTRY_USERNAME }} --registry-password ${{ secrets.REGISTRY_PASSWORD }} --ip-address Private --subnet '/subscriptions/e781198c-6f6d-4994-b688-6e8e34c63c79/resourceGroups/rg-reproducibility-demo-eastus-01/providers/Microsoft.Network/virtualNetworks/vnet-reproducibility-demo-eastus-01/subnets/aci' --command-line 'touch /mnt/y/aearep-2656/lots-of-research-data-2.txt' azure-file-volume-account-key ${{ secrets.ST_ACCOUNT_KEY }} --azure-file-volume-account-name streprodemoeastus01 --azure-file-volume-mount-path '/mnt/y' --azure-file-volume-share-name 'study-repro' --restart-policy Never --location eastus
+                
