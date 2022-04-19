@@ -1,32 +1,51 @@
 on: [push]
-name: Linux_Container_Workflow
+name: 'Run data reproducibility'
 
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
         steps:
+        - id: lcaserepo
+          name: 'Lowercase repo owner/name'
+          uses: ASzc/change-string-case-action@v2
+          with:
+            string: ${{ github.REPOSITORY }}
+        
+        - name: 'Format Azure Container Instance and file share name'
+          id: aciname
+          uses: mad9000/actions-find-and-replace-string@2
+          with:
+            # The text you want to run this action on
+            source: ${{ steps.lcaserepo.outputs.lowercase }}
+            # The text you are looking for
+            find: '/'
+            # The text you want to replace with
+            replace: '-'
+    
         # checkout the repo
-        - name: 'Checkout GitHub Action'
+        - name: 'Checkout repo'
           uses: actions/checkout@main
           
-        - name: 'Login via Azure CLI'
+        - name: 'Login to Azure'
           uses: azure/login@v1
           with:
             creds: ${{ secrets.AZURE_CREDENTIALS }}
         
-        - name: 'Build and push image'
+        - name: 'Login to Azure Container Registry'
           uses: azure/docker-login@v1
           with:
             login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
             username: ${{ secrets.REGISTRY_USERNAME }}
             password: ${{ secrets.REGISTRY_PASSWORD }}
-        - run: |
-            docker build . -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.run_number }}
-            docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.run_number }}
+        
+        - name: 'Build and push container image to Azure Container Registry'
+          run: |
+            docker build . -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ steps.lcaserepo.outputs.lowercase }}:${{ github.run_number }}
+            docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ steps.lcaserepo.outputs.lowercase }}:${{ github.run_number }}
             
-        - name: 'Azure CLI Action: Create container'
+        - name: 'Run container in Azure Container Instance'
           uses: Azure/cli@v1
           with:
             inlineScript: |
-                az container create -g ${{ secrets.RESOURCE_GROUP }} -n aci-repo1 --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/aearep-2656:${{ github.run_number }} --cpu 1 --memory 1.5 --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} --registry-username ${{ secrets.REGISTRY_USERNAME }} --registry-password ${{ secrets.REGISTRY_PASSWORD }} --ip-address Private --subnet '/subscriptions/e781198c-6f6d-4994-b688-6e8e34c63c79/resourceGroups/rg-reproducibility-demo-eastus-01/providers/Microsoft.Network/virtualNetworks/vnet-reproducibility-demo-eastus-01/subnets/aci' --command-line 'touch /mnt/y/aearep-2656/lots-of-research-data-2.txt' --azure-file-volume-account-key ${{ secrets.ST_ACCOUNT_KEY }} --azure-file-volume-account-name streprodemoeastus01 --azure-file-volume-mount-path '/mnt/y' --azure-file-volume-share-name 'study-repro' --restart-policy Never --location eastus
+                az container create -g ${{ secrets.RESOURCE_GROUP }} -n aci-${{ steps.aciname.outputs.value }} --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ steps.lcaserepo.outputs.lowercase }}:${{ github.run_number }} --cpu 1 --memory 1.5 --registry-login-server ${{ secrets.REGISTRY_LOGIN_SERVER }} --registry-username ${{ secrets.REGISTRY_USERNAME }} --registry-password ${{ secrets.REGISTRY_PASSWORD }} --ip-address Private --subnet '/subscriptions/e781198c-6f6d-4994-b688-6e8e34c63c79/resourceGroups/rg-reproducibility-demo-eastus-01/providers/Microsoft.Network/virtualNetworks/vnet-reproducibility-demo-eastus-01/subnets/aci' --command-line 'touch /mnt/y/${{ steps.aciname.outputs.value }}/lots-of-research-data-2.txt' --azure-file-volume-account-key ${{ secrets.ST_ACCOUNT_KEY }} --azure-file-volume-account-name streprodemoeastus01 --azure-file-volume-mount-path '/mnt/y' --azure-file-volume-share-name 'study-repro' --restart-policy Never --location eastus
                 
